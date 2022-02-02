@@ -8,7 +8,7 @@
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "test": "npm run docker:up & dotenv -e ./.env.test npx prisma migrate deploy & dotenv -e ./.env.test jest user.spec.ts --watch --detectOpenHandles & dotenv -e ./.env.test jest account.spec.ts --watch --detectOpenHandles",
-    "alone:test": "dotenv -e ./.env.test jest --watch --runInBand"
+    "alone:test": "dotenv -e ./.env.test jest user.spec.ts --watch --detectOpenHandles & dotenv -e ./.env.test jest account.spec.ts --watch --detectOpenHandles"
   },
   "author": "Nathaniel Babalola",
   "license": "MIT",
