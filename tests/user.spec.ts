@@ -93,8 +93,3 @@ describe('User Authentication', () => {
         expect(response.text).toBe('Username or Password does not exist')
     })
 });
-
-
-// test('should login existing user', async () => {
-//     const response = await request(app)
-// })

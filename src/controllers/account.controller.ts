@@ -5,9 +5,15 @@ import { PrismaClient, Prisma } from '@prisma/client';
 const prisma = new PrismaClient();
 import { user, account } from '.prisma/client';
 import { transfer } from '../utils/transfer';
+import { databaseResponseTimeHistogram } from '../utils/metrics';
 
 
 export const transferMoney = async (req: Request, res: Response) => {
+    const metricsLabel = {
+        operation: 'transferMoney'
+    };
+    const timer = databaseResponseTimeHistogram.startTimer();
+
     try {
         // since we already have an authorized user
         // all we need is the destination account and amount
@@ -31,8 +37,11 @@ export const transferMoney = async (req: Request, res: Response) => {
                 message: "Sorry destination account does not exist"
             })
         }
+
+
         // perform the transfer
-        const transaction = await transfer(from, to, amount, 'transfer')
+        const transaction = await transfer(from, to, amount, 'transfer');
+        timer({ ...metricsLabel, success: 'true' })
 
         // send the transaction back to client
         return res.status(200).send({
@@ -42,6 +51,7 @@ export const transferMoney = async (req: Request, res: Response) => {
             }
         })
     } catch (error: any) {
+        timer({ ...metricsLabel, success: 'false' })
         console.error(error)
         return res.status(500).send({
             success: false,
@@ -109,6 +119,10 @@ export const refundMoney = async (req: Request, res: Response) => {
 
 // TODO: parse amount with currency when depositing
 export const deposit = async (req: Request, res: Response) => {
+    const metricsLabel = {
+        operation: 'depositMoney'
+    };
+    const timer = databaseResponseTimeHistogram.startTimer();
     try {
         const userId = Number(req.user.id)
         const amount = currency(req.query.amount).value;
@@ -136,11 +150,14 @@ export const deposit = async (req: Request, res: Response) => {
             return res.status(404).send('sorry you dont have an account');
         }
 
+        timer({ ...metricsLabel, success: 'true' })
+
         return res.status(200).send({
             success: true,
             message: `Your account has been credited with ${amount}, this is your new balance ${account.balance}`
         })
     } catch (error: any) {
+        timer({ ...metricsLabel, success: 'false' })
         return res.status(500).send({
             success: false,
             message: `Sorry couldn't process your deposit`,
@@ -151,17 +168,17 @@ export const deposit = async (req: Request, res: Response) => {
 
 //TODO: check balance is nnot less than zero
 export const withdraw = async (req: Request, res: Response) => {
+    const metricsLabel = {
+        operation: 'withdrawMoney'
+    };
+    const timer = databaseResponseTimeHistogram.startTimer();
     try {
         const userId = Number(req.user.id)
         const amount = currency(req.query.amount).value;
+        //const balance = await withdrawMoney(userId, amount);
 
         // Get account that belongs to user
-        const account = await prisma.account.update({
-            data: {
-                balance: {
-                    decrement: amount
-                }
-            },
+        const account = await prisma.account.findUnique({
             where: {
                 userId: userId
             },
@@ -174,18 +191,35 @@ export const withdraw = async (req: Request, res: Response) => {
             }
         });
 
-        if (account.balance < 0) {
-            throw new Error('Insufficient balance')
+        const balance = currency(account?.balance).subtract(amount).value;
+
+        if (balance < 0) {
+            throw new Error('Insufficient balance');
         }
+
+        prisma.account.update({
+            data: {
+                balance: {
+                    set: balance
+                }
+            },
+            where: {
+                userId: userId
+            }
+        })
+
+        timer({ ...metricsLabel, success: 'true' })
 
         return res.status(200).send({
             success: true,
-            message: `Withdrawal successfull. Your new balance is now at ${account.balance}`,
+            message: `Withdrawal successfull. Your new balance is now at ${balance}`,
             data: {
                 amount: amount
             }
         })
     } catch (error: any) {
+        console.log(error);
+        timer({ ...metricsLabel, success: 'false' })
         return res.status(500).send({
             success: false,
             message: `Sorry couldn't process your withdrawal`,
@@ -196,6 +230,10 @@ export const withdraw = async (req: Request, res: Response) => {
 
 //TODO: Get account balance
 export const getAccountBalance = async (req: Request, res: Response) => {
+    const metricsLabel = {
+        operation: 'getAccountBalance'
+    };
+    const timer = databaseResponseTimeHistogram.startTimer();
     try {
         const userId = Number(req.user.id);
 
@@ -209,11 +247,14 @@ export const getAccountBalance = async (req: Request, res: Response) => {
             return res.status(404).send('Sorry account not found')
         }
 
+        timer({ ...metricsLabel, success: 'true' })
+
         return res.status(200).send({
             success: true,
             balance: `Your account balance is ${account.balance}`
         })
     } catch (error: any) {
+        timer({ ...metricsLabel, success: 'false' })
         return res.status(500).send({
             success: false,
             message: `Sorry couldn't fetch your account balance`,
@@ -225,6 +266,10 @@ export const getAccountBalance = async (req: Request, res: Response) => {
 
 //TODO: get history of transactions on getAccountBalance
 export const getTransactionHistory = async (req: Request, res: Response) => {
+    const metricsLabel = {
+        operation: 'getTransactionHistory'
+    };
+    const timer = databaseResponseTimeHistogram.startTimer();
     try {
         const userId = Number(req.user.id);
 
@@ -260,6 +305,7 @@ export const getTransactionHistory = async (req: Request, res: Response) => {
         if (history.length == 0) {
             return res.status(404).send('There are no transactions on this account yet')
         }
+        timer({ ...metricsLabel, success: 'true' })
 
         return res.status(200).send({
             success: true,
@@ -268,6 +314,7 @@ export const getTransactionHistory = async (req: Request, res: Response) => {
             }
         })
     } catch (error: any) {
+        timer({ ...metricsLabel, success: 'false' })
         return res.status(500).send({
             success: false,
             message: `Sorry couldn't fetch your transactions`,

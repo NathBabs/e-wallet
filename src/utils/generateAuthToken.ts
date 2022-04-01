@@ -9,7 +9,7 @@ export const generateToken = async (instance: user): Promise<string> => {
         const token = jwt.sign({
             id: instance.id.toString()
         }, process.env.JWT_SECRET, {
-            expiresIn: '60m'
+            expiresIn: '7d'
         });
 
         const USER = await prisma.user.update({

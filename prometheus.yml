@@ -1,0 +1,12 @@
+scrape_configs:
+  - job_name: 'prometheus'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['localhost:9100']
+    honor_labels: false
+    honor_timestamps: true
+    scheme: http
+  - job_name: 'api server'
+    scrape_interval: 5s
+    static_configs:
+     - targets: ['docker.for.win.localhost:9100']
