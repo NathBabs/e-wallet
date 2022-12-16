@@ -7,9 +7,9 @@ This is a simple implementation of an E-Wallet platform that supports the  follo
 To setup this application first
 clone the repo
 ```
-➜ git clone https://github.com/foruslabs/be-Nathaniel-Babalola.git
+➜ git clone https://github.com/NathBabs/e-wallet.git
 
-➜ cd be-Nathaniel-Babalola
+➜ cd e-wallet
 ```
 
 next install dependencies
