@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import currency from 'currency.js';
-import { PrismaClient, Prisma } from '@prisma/client';
 
-const prisma = new PrismaClient();
 import { user, account } from '.prisma/client';
 import { transfer } from '../utils/transfer';
 import { databaseResponseTimeHistogram } from '../utils/metrics';
+import { nanoid } from 'nanoid';
+import prisma from '../../client';
 
 
 export const transferMoney = async (req: Request, res: Response) => {
@@ -40,14 +40,22 @@ export const transferMoney = async (req: Request, res: Response) => {
 
 
         // perform the transfer
-        const transaction = await transfer(from, to, amount, 'transfer');
+        const transaction = await transfer(from, to, Number(amount), 'transfer');
+
+        // get balance
+        const account = await prisma.account.findUnique({
+            where: {
+                userId: from
+            }
+        });
         timer({ ...metricsLabel, success: 'true' })
 
         // send the transaction back to client
         return res.status(200).send({
             success: true,
             data: {
-                transactionReference: transaction.txRef
+                transactionReference: transaction.txRef,
+                balance: account?.balance,
             }
         })
     } catch (error: any) {
@@ -62,14 +70,8 @@ export const transferMoney = async (req: Request, res: Response) => {
 }
 
 
-// TODO: Add refund to the initial transaction txRef string and use it as it's own txRef
-// e.g txRef = jghd87645df , refund's txRef = refundjghd87645df or refund_jghd87645df <==  i think this better
-// TODO: And also add an optional field called refundRef => this field will reference the initial transaction
-// so we will have txRef => compulsory and refundRef => optional
-
 export const refundMoney = async (req: Request, res: Response) => {
     try {
-        // TODO: get the txRef from the req.body , make sure it's a protected route
         // a refund will be initiated by the receiver
         // receiver has to be logged in
         // get his user.id and serach for as transaction where he is the receiverId
@@ -78,7 +80,6 @@ export const refundMoney = async (req: Request, res: Response) => {
         let from = req.user.id;
         // these two conditions must be met, to ensure the user is not inintiating the refund for another transaction
         // that they are not a party of
-        //console.log('hereeeeeeeeeeeeee======', await prisma.transactions.findMany({}))
         const tx = await prisma.transactions.findFirst({
             where: {
                 txRef: txRef,
@@ -99,7 +100,8 @@ export const refundMoney = async (req: Request, res: Response) => {
         let to = Number(tx.senderId)
 
         // initiate a trasfer
-        const refund = await transfer(from, to, tx.amount, 'refund', txRef)
+        const refund = await transfer(from, to, tx.amount, 'refund', txRef);
+
 
         return res.status(200).send({
             success: true,
@@ -117,7 +119,6 @@ export const refundMoney = async (req: Request, res: Response) => {
 }
 
 
-// TODO: parse amount with currency when depositing
 export const deposit = async (req: Request, res: Response) => {
     const metricsLabel = {
         operation: 'depositMoney'
@@ -145,6 +146,17 @@ export const deposit = async (req: Request, res: Response) => {
                 }
             }
         });
+        
+        // create a deposit transaction
+        await prisma.transactions.create({
+            data: {
+                txRef: `DEP-${nanoid(12)}`,
+                refundRef: null,
+                amount: amount,
+                senderId: userId,
+                receiverId: userId,
+                }
+            })
 
         if (!account) {
             return res.status(404).send('sorry you dont have an account');
@@ -154,7 +166,10 @@ export const deposit = async (req: Request, res: Response) => {
 
         return res.status(200).send({
             success: true,
-            message: `Your account has been credited with ${amount}, this is your new balance ${account.balance}`
+            message: `Your account has been credited with ${amount}, this is your new balance ${account.balance}`,
+            data: {
+                balance: account.balance,
+            }
         })
     } catch (error: any) {
         timer({ ...metricsLabel, success: 'false' })
@@ -166,7 +181,12 @@ export const deposit = async (req: Request, res: Response) => {
     }
 }
 
-//TODO: check balance is nnot less than zero
+/**
+ * 
+ * @param req 
+ * @param res 
+ * @returns 
+ */
 export const withdraw = async (req: Request, res: Response) => {
     const metricsLabel = {
         operation: 'withdrawMoney'
@@ -208,12 +228,24 @@ export const withdraw = async (req: Request, res: Response) => {
             }
         })
 
+        // create a withdrawal transaction
+        await prisma.transactions.create({
+            data: {
+                txRef: `WDL-${nanoid(12)}`,
+                refundRef: null,
+                amount: amount,
+                senderId: userId,
+                receiverId: userId,
+                }
+            })
+
         timer({ ...metricsLabel, success: 'true' })
 
         return res.status(200).send({
             success: true,
             message: `Withdrawal successfull. Your new balance is now at ${balance}`,
             data: {
+                balance: balance,
                 amount: amount
             }
         })
@@ -228,7 +260,12 @@ export const withdraw = async (req: Request, res: Response) => {
     }
 }
 
-//TODO: Get account balance
+/**
+ * Get account balance
+ * @param req 
+ * @param res 
+ * @returns 
+ */
 export const getAccountBalance = async (req: Request, res: Response) => {
     const metricsLabel = {
         operation: 'getAccountBalance'
@@ -251,7 +288,7 @@ export const getAccountBalance = async (req: Request, res: Response) => {
 
         return res.status(200).send({
             success: true,
-            balance: `Your account balance is ${account.balance}`
+            balance: `${account.balance}`
         })
     } catch (error: any) {
         timer({ ...metricsLabel, success: 'false' })
@@ -264,7 +301,7 @@ export const getAccountBalance = async (req: Request, res: Response) => {
 }
 
 
-//TODO: get history of transactions on getAccountBalance
+//get history of transactions on getAccountBalance
 export const getTransactionHistory = async (req: Request, res: Response) => {
     const metricsLabel = {
         operation: 'getTransactionHistory'

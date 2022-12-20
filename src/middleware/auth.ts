@@ -2,11 +2,12 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 //import { replace } from 'lodash';
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient();
+import prisma from '../../client';
 
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        var token = req.header("Authorization").replace("Bearer", "");
+        let token = req.header("Authorization").replace("Bearer", "");
         token = token.trim();
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -14,7 +15,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
             where: {
                 id: +decoded.id,
                 tokens: {
-                    has: token
+                    has: token.toString()
                 }
             }
         });
@@ -60,6 +61,10 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
                 data: {
                     tokens: filteredTokens
                 }
+            })
+
+            return res.status(401).send({
+                message: "expired"
             })
         }
 

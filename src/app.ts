@@ -2,12 +2,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 import express, { Request, Response } from 'express';
 import responseTime from 'response-time';
+import cors from 'cors';
 import morgan from 'morgan';
 import routes from './routes';
 import { restResponseTimeHistogram, databaseResponseTimeHistogram } from './utils/metrics';
 
 const app = express();
 
+app.use(cors({
+    origin: "*"
+}));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: false }));

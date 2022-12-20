@@ -1,4 +1,3 @@
-// TODO: refund is still a transfer , just that the Sender becomes the Receiver instead
 import {nanoid} from 'nanoid';
 import {PrismaClient, PrismaPromise} from '@prisma/client';
 
@@ -51,7 +50,7 @@ export const transfer = async function (from: number, to: number, amount: number
 
         if (type === 'refund') {
             // append 'refund' to the txRef and use it as the present txRef
-            const transactionRef = `refund${txRef}`
+            const transactionRef = `REF-${txRef}`
 
             const transaction = prisma.transactions.create({
                 data: {
@@ -67,7 +66,7 @@ export const transfer = async function (from: number, to: number, amount: number
         }
 
         //4. generate txRefs 
-        const Ref = nanoid(12)
+        const Ref = `TRF-${nanoid(12)}`
 
         //4. create a transaction and update the account
         const transactions = prisma.transactions.create({

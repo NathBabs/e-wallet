@@ -1,15 +1,11 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import currency from 'currency.js';
-import { nanoid } from 'nanoid';
 import { CreateUserInput } from '../schema/user.schema';
 import { generateToken } from '../utils/generateAuthToken'
-import { PrismaClient, Prisma } from '@prisma/client';
-import { user } from '.prisma/client';
 
-const prisma = new PrismaClient();
+import prisma from '../../client';
 
-//TODO: format the balance to 2 decimal places
 export const registerUser = async (req: Request<{}, {}, CreateUserInput['body']>, res: Response) => {
     try {
         let { password, email, balance } = req.body
@@ -46,8 +42,7 @@ export const registerUser = async (req: Request<{}, {}, CreateUserInput['body']>
         }
 
 
-        // TODO: create user with its account
-        // TODO: create account upon creation of user
+        // create account upon creation of user
         const user = await prisma.user.create({
             ...userData,
             include: {
@@ -116,7 +111,8 @@ export const login = async (req: Request, res: Response) => {
             success: true,
             message: 'Successfully logged in',
             data: {
-                token: token
+                token: token,
+                userId: user.id
             }
         })
     } catch (error) {
@@ -129,7 +125,6 @@ export const logout = async (req: Request, res: Response) => {
     try {
         // return a filtered token array that doesn't contain the current token being returned from the auth.js file
         req.user.tokens = req.user.tokens.filter(token => {
-            console.log(token);
             return token.token != req.token;
         });
 
