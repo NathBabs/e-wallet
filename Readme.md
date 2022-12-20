@@ -117,13 +117,16 @@ response
 ### *Deposit Money* `protected`
 **method** : `POST` <br>
 
-🌎 ➜ `/wallet/deposit/?amount=3000`
+🌎 ➜ `/wallet/deposit?amount=3000`
 
 response
 ```
 {
 	"success": true,
-	"message": "Your account has been credited with 3000, this is your new balance 4000"
+	"message": "Your account has been credited with 3000, this is your new balance 4000",
+	"data": {
+	    "balance": 7000
+	}
 }
 ```
 <br> <br>
@@ -131,7 +134,7 @@ response
 ### *Withdraw Money* `protected`
 **method** : `POST` <br>
 
-🌎 ➜ `/wallet/withdraw/?amount=3000`
+🌎 ➜ `/wallet/withdraw?amount=3000`
 
 response
 ```
@@ -139,7 +142,8 @@ response
 	"success": true,
 	"message": "Withdrawal successfull. Your new balance is now at 49000",
 	"data": {
-		"amount": 1000
+		"balance": 7000,
+		"amount": 1000,
 	}
 }
 ```
@@ -166,7 +170,8 @@ response
 {
 	"success": true,
 	"data": {
-		"transactionReference": "gm1SzBI0qnYy"
+		"transactionReference": "gm1SzBI0qnYy",
+		"balance": 7000
 	}
 }
 ```
@@ -240,6 +245,6 @@ response
 ```
 {
 	"success": true,
-	"balance": "Your account balance is 49000"
+	"balance": 49000
 }
 ```
