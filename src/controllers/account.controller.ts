@@ -102,6 +102,15 @@ export const refundMoney = async (req: Request, res: Response) => {
         // initiate a trasfer
         const refund = await transfer(from, to, tx.amount, 'refund', txRef);
 
+        // update the initial transaction refundRef
+        await prisma.transactions.update({
+            where: {
+                txRef: txRef
+            },
+            data: {
+                refundRef: refund.txRef
+            }
+        })
 
         return res.status(200).send({
             success: true,
