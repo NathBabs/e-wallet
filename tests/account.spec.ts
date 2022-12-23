@@ -8,6 +8,7 @@ import { generateToken } from '../src/utils/generateAuthToken';
 const prisma = new PrismaClient()
 
 import { nanoid } from "nanoid";
+import logger from '../src/utils/logger';
 
 const sandbox = createSandbox();
 
@@ -51,7 +52,7 @@ beforeAll(async () => {
             account: true
         }
     });
-    console.log('user 1 created successfully')
+    logger.info('user 1 created successfully')
     userTwoCreate = await prisma.user.create({
         data: userTwo,
         include: {
@@ -59,9 +60,8 @@ beforeAll(async () => {
         }
     });
 
-    console.log('user 2 created successfully')
+    logger.info('user 2 created successfully')
     token = await generateToken(userOneCreate);
-    //console.log(token);
 
     await prisma.transactions.createMany({
         data: [
@@ -80,8 +80,6 @@ beforeAll(async () => {
         ]
     })
 
-    //console.log(tx);
-
 
 });
 
@@ -94,7 +92,7 @@ afterAll(async () => {
             try {
                 await prisma.$executeRawUnsafe(`TRUNCATE TABLE "public"."${tablename}" CASCADE;`)
             } catch (error) {
-                console.log({ error })
+                logger.error({ error })
             }
         }
     }

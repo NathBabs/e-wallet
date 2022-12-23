@@ -2,6 +2,7 @@ import request from 'supertest';
 import app from '../src/app';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { createSandbox } from 'sinon';
+import logger from '../src/utils/logger';
 
 const prisma = new PrismaClient();
 const sandbox = createSandbox();
@@ -33,7 +34,7 @@ describe('User Authentication', () => {
         const userOneCreate = await prisma.user.create({
             data: userOne
         });
-        console.log('created a user');
+        logger.info(`created a user`);
     });
 
     afterAll(async () => {
@@ -65,7 +66,6 @@ describe('User Authentication', () => {
             .expect(201);
 
         expect(response.body.success).toBe(true);
-        //    console.log(response.body);
     });
 
     test('should not login non existent user', async () => {

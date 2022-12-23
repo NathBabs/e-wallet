@@ -5,6 +5,7 @@ import { CreateUserInput } from '../schema/user.schema';
 import { generateToken } from '../utils/generateAuthToken'
 
 import prisma from '../../client';
+import logger from '../utils/logger';
 
 export const registerUser = async (req: Request<{}, {}, CreateUserInput['body']>, res: Response) => {
     try {
@@ -75,7 +76,7 @@ export const registerUser = async (req: Request<{}, {}, CreateUserInput['body']>
             }
         })
     } catch (error: any) {
-        console.log(error.message)
+        logger.error(error.message)
         return res.status(500).send({
             success: false,
             error: error.message

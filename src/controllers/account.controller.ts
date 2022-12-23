@@ -1,12 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import currency from 'currency.js';
-
 import { user, account } from '.prisma/client';
 import { transfer } from '../utils/transfer';
 import { databaseResponseTimeHistogram } from '../utils/metrics';
 import { nanoid } from 'nanoid';
 import prisma from '../../client';
-
+import logger from '../utils/logger';
 
 export const transferMoney = async (req: Request, res: Response) => {
     const metricsLabel = {
@@ -60,7 +59,7 @@ export const transferMoney = async (req: Request, res: Response) => {
         })
     } catch (error: any) {
         timer({ ...metricsLabel, success: 'false' })
-        console.error(error)
+        logger.error(error)
         return res.status(500).send({
             success: false,
             message: 'Something went wrong',
@@ -95,7 +94,6 @@ export const refundMoney = async (req: Request, res: Response) => {
         }
         ;
 
-        //console.log('tx from acc controller: ' + txRef)
         // get the senderId{accNumber} which will be the {to} in a refund transaction
         let to = Number(tx.senderId)
 
@@ -118,7 +116,7 @@ export const refundMoney = async (req: Request, res: Response) => {
         })
 
     } catch (error: any) {
-        console.error(error);
+        logger.error(error);
         return res.status(500).send({
             success: false,
             message: 'Something went wrong with the refund',
@@ -259,7 +257,7 @@ export const withdraw = async (req: Request, res: Response) => {
             }
         })
     } catch (error: any) {
-        console.log(error);
+        logger.error(error);
         timer({ ...metricsLabel, success: 'false' })
         return res.status(500).send({
             success: false,

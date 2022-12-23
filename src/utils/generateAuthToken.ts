@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { PrismaClient, Prisma } from '@prisma/client';
 import { user } from '.prisma/client'
+import logger from './logger';
 
 const prisma = new PrismaClient();
 
@@ -26,7 +27,7 @@ export const generateToken = async (instance: user): Promise<string> => {
         return token
 
     } catch (error) {
-        console.error(error)
+        logger.error(error)
         throw new Error('Could not generate token');
     }
 }

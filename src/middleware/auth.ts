@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 //import { replace } from 'lodash';
 // const prisma = new PrismaClient();
 import prisma from '../../client';
+import logger from '../utils/logger';
 
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -30,7 +31,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
         next();
 
     } catch (error: any) {
-        console.error(error);
+        logger.error(error);
         if (error.message == 'jwt expired') {
             // @ts-ignore
             const decodedExp = jwt.decode(token, {

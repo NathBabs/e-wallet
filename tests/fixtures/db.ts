@@ -60,8 +60,6 @@ export const setupDatabase = async () => {
         data: userTwo
     });
 
-    // console.log(userOneCreate)
-    // console.log(userTwoCreate)
 
 
     // const res = await prisma.$transaction([userOneCreate, userTwoCreate])
