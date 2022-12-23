@@ -46,7 +46,7 @@ describe('User Authentication', () => {
                 try {
                     await prisma.$executeRawUnsafe(`TRUNCATE TABLE "public"."${tablename}" CASCADE;`)
                 } catch (error) {
-                    console.log({ error })
+                    logger.error({ error });
                 }
             }
         }
