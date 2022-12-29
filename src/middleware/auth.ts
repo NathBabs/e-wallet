@@ -1,15 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-//import { replace } from 'lodash';
-// const prisma = new PrismaClient();
 import prisma from '../../client';
 import logger from '../utils/logger';
 
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
+    let token = req.header("Authorization").replace("Bearer", "");
+    token = token.trim();
     try {
-        let token = req.header("Authorization").replace("Bearer", "");
-        token = token.trim();
+        if (!token) {
+            throw new Error('Please sign in')
+        }
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         const user = await prisma.user.findFirst({

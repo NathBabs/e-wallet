@@ -11,9 +11,7 @@ export const registerUser = async (req: Request<{}, {}, CreateUserInput['body']>
     try {
         let { password, email, balance } = req.body
         const hashedPassword = await bcrypt.hash(password, 10);
-        //const token = jwt.sign({ email: req.body.email }, process.env.JWT_SECRET);
         password = hashedPassword;
-        //req.body.confirmationCode = nanoid(12);
         // format balance to 2 decimal float
         balance = currency(balance).value;
         const userData = {

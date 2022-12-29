@@ -1,9 +1,7 @@
 import jwt from 'jsonwebtoken';
-import { PrismaClient, Prisma } from '@prisma/client';
 import { user } from '.prisma/client'
 import logger from './logger';
-
-const prisma = new PrismaClient();
+import prisma from '../../client';
 
 export const generateToken = async (instance: user): Promise<string> => {
     try {

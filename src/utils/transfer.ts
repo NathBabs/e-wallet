@@ -65,10 +65,8 @@ export const transfer = async function (from: number, to: number, amount: number
             return transaction;
         }
 
-        //4. generate txRefs 
+        //4. generate transaction reference and create a transaction
         const Ref = `TRF-${nanoid(12)}`
-
-        //4. create a transaction and update the account
         const transactions = prisma.transactions.create({
             data: {
                 txRef: Ref,
