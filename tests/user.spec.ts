@@ -90,6 +90,6 @@ describe('User Authentication', () => {
             })
             .expect(404);
 
-        expect(response.text).toBe('Username or Password does not exist')
+        expect(response.body.success).toBe(false)
     })
 });
