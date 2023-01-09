@@ -1,5 +1,5 @@
-import {nanoid} from 'nanoid';
-import {PrismaClient, PrismaPromise} from '@prisma/client';
+import { nanoid } from 'nanoid';
+import { PrismaClient, PrismaPromise } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -11,72 +11,79 @@ const prisma = new PrismaClient();
  * @param type either a transfer or a refund
  * @param txRef transaction reference of the refund
  */
-export const transfer = async function (from: number, to: number, amount: number, type: string, txRef?: string) {
-    return await prisma.$transaction(async (prisma) => {
-        //1. Decrement from the user sending amount
-        const sender = await prisma.account.update({
-            data: {
-                balance: {
-                    decrement: amount
-                }
-            },
-            where: {
-                userId: from
-            },
-            include: {
-                user: true
-            }
-        })
+export const transfer = async function (
+  from: number,
+  to: number,
+  amount: number,
+  type: string,
+  txRef?: string
+) {
+  return await prisma.$transaction(async prisma => {
+    //1. Decrement from the user sending amount
+    const sender = await prisma.account.update({
+      data: {
+        balance: {
+          decrement: amount,
+        },
+      },
+      where: {
+        userId: from,
+      },
+      include: {
+        user: true,
+      },
+    });
 
-        //2. verify the user's balance did not go below zero
-        if (sender.balance < 0) {
-            throw new Error(`This A/C number: ${sender.accNumber} does not have sufficient funds`)
-        }
+    //2. verify the user's balance did not go below zero
+    if (sender.balance < 0) {
+      throw new Error(
+        `This A/C number: ${sender.accNumber} does not have sufficient funds`
+      );
+    }
 
-        //3. increase receivers balance
-        const receiver = await prisma.account.update({
-            data: {
-                balance: {
-                    increment: amount
-                }
-            },
-            where: {
-                accNumber: to
-            },
-            include: {
-                user: true
-            }
-        })
+    //3. increase receivers balance
+    const receiver = await prisma.account.update({
+      data: {
+        balance: {
+          increment: amount,
+        },
+      },
+      where: {
+        accNumber: to,
+      },
+      include: {
+        user: true,
+      },
+    });
 
-        if (type === 'refund') {
-            // append 'refund' to the txRef and use it as the present txRef
-            const transactionRef = `REF-${txRef}`
+    if (type === 'refund') {
+      // append 'refund' to the txRef and use it as the present txRef
+      const transactionRef = `REF-${txRef}`;
 
-            const transaction = prisma.transactions.create({
-                data: {
-                    txRef: transactionRef,
-                    refundRef: txRef,
-                    amount: amount,
-                    senderId: sender.accNumber,
-                    receiverId: receiver.accNumber,
-                }
-            })
+      const transaction = prisma.transactions.create({
+        data: {
+          txRef: transactionRef,
+          refundRef: txRef,
+          amount: amount,
+          senderId: sender.accNumber,
+          receiverId: receiver.accNumber,
+        },
+      });
 
-            return transaction;
-        }
+      return transaction;
+    }
 
-        //4. generate transaction reference and create a transaction
-        const Ref = `TRF-${nanoid(12)}`
-        const transactions = prisma.transactions.create({
-            data: {
-                txRef: Ref,
-                senderId: sender.accNumber,
-                receiverId: receiver.accNumber,
-                amount: amount
-            }
-        })
+    //4. generate transaction reference and create a transaction
+    const Ref = `TRF-${nanoid(12)}`;
+    const transactions = prisma.transactions.create({
+      data: {
+        txRef: Ref,
+        senderId: sender.accNumber,
+        receiverId: receiver.accNumber,
+        amount: amount,
+      },
+    });
 
-        return transactions
-
-    })
-}
+    return transactions;
+  });
+};
