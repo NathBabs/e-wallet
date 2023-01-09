@@ -15,3 +15,11 @@ export const transferMoneySchema = object({
 
 export interface TransferMoneyInput
   extends InferType<typeof transferMoneySchema> {}
+
+export const refundMoneySchema = object({
+  body: object({
+    txRef: string().required('Transaction reference is required'),
+  }),
+});
+
+export interface RefundMoneyInput extends InferType<typeof refundMoneySchema> {}

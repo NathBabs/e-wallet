@@ -13,7 +13,10 @@ import {
   getTransactionHistory,
 } from '../controllers/account.controller';
 import validate from '../middleware/validateRequest';
-import { transferMoneySchema } from '../schema/account.schema';
+import {
+  refundMoneySchema,
+  transferMoneySchema,
+} from '../schema/account.schema';
 
 // transfer money
 // {to: accNumber, amount:6000}
@@ -23,7 +26,9 @@ router
 
 // refund money
 // { txRef: 'kjyfviayef733 }
-router.route('/wallet/refund').post(auth, refundMoney);
+router
+  .route('/wallet/refund')
+  .post(validate(refundMoneySchema), auth, refundMoney);
 
 // deposit money
 // ?amount=50000
