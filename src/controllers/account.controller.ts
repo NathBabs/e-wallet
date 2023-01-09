@@ -6,8 +6,8 @@ import { databaseResponseTimeHistogram } from '../utils/metrics';
 import { nanoid } from 'nanoid';
 import prisma from '../../client';
 import logger from '../utils/logger';
-import { transferMoney } from '../services/account.service';
-import { TransferMoneyInput } from '../schema/account.schema';
+import { refund, transferMoney } from '../services/account.service';
+import { RefundMoneyInput, TransferMoneyInput } from '../schema/account.schema';
 
 export const transferToAccount = async (
   req: Request<{}, {}, TransferMoneyInput['body']>,
@@ -27,63 +27,27 @@ export const transferToAccount = async (
     .catch(e => next(e));
 };
 
-export const refundMoney = async (req: Request, res: Response) => {
-  try {
-    // a refund will be initiated by the receiver
-    // receiver has to be logged in
-    // get his user.id and serach for as transaction where he is the receiverId
-    let txRef = req.body.txRef;
-    // it is the logged in user that is initiating a refund
-    let from = req.user?.id;
-    // these two conditions must be met, to ensure the user is not inintiating the refund for another transaction
-    // that they are not a party of
-    const tx = await prisma.transactions.findFirst({
-      where: {
-        txRef: txRef,
-        receiverId: from,
-      },
-    });
-
-    if (!tx) {
-      return res.status(404).send({
-        success: false,
-        message: `Sorry you can't refund this transaction of Reference: ${txRef}`,
+export const refundMoney = async (
+  req: Request<{}, {}, RefundMoneyInput['body']>,
+  res: Response,
+  next: NextFunction
+) => {
+  // a refund will be initiated by the receiver
+  // receiver has to be logged in
+  // get his user.id and serach for as transaction where he is the receiverId
+  const { txRef } = req.body;
+  // it is the logged in user that is initiating a refund
+  const from = req.user?.id as number;
+  // these two conditions must be met, to ensure the user is not inintiating the refund for another transaction
+  // that they are not a party of
+  refund({ txRef, from })
+    .then(dataObj => {
+      res.status(dataObj.statusCode).send({
+        status: true,
+        data: dataObj.data,
       });
-    }
-    // get the senderId{accNumber} which will be the {to} in a refund transaction
-    let to = Number(tx.senderId);
-
-    // initiate a trasfer
-    const refund = await transferToAccount(
-      from,
-      to,
-      tx.amount,
-      'refund',
-      txRef
-    );
-
-    // update the initial transaction refundRef
-    await prisma.transactions.update({
-      where: {
-        txRef: txRef,
-      },
-      data: {
-        refundRef: refund.txRef,
-      },
-    });
-
-    return res.status(200).send({
-      success: true,
-      message: `Refund has been completed here is the Transaction Refrence: ${refund.txRef}`,
-    });
-  } catch (error: any) {
-    logger.error(error);
-    return res.status(500).send({
-      success: false,
-      message: 'Something went wrong with the refund',
-      error: error.message,
-    });
-  }
+    })
+    .catch(e => next(e));
 };
 
 export const deposit = async (req: Request, res: Response) => {
