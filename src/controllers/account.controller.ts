@@ -8,7 +8,8 @@ import prisma from '../../client';
 import logger from '../utils/logger';
 import {
   depositMoney,
-  refund,
+  fetchAccountBalance,
+  refundMoney,
   transferMoney,
   withdrawMoney,
 } from '../services/account.service';
@@ -32,7 +33,7 @@ export const transferToAccount = async (
     .catch(e => next(e));
 };
 
-export const refundMoney = async (
+export const refund = async (
   req: Request<{}, {}, RefundMoneyInput['body']>,
   res: Response,
   next: NextFunction
@@ -45,7 +46,7 @@ export const refundMoney = async (
   const from = req.user?.id as number;
   // these two conditions must be met, to ensure the user is not inintiating the refund for another transaction
   // that they are not a party of
-  refund({ txRef, from })
+  refundMoney({ txRef, from })
     .then(dataObj => {
       res.status(dataObj.statusCode).send({
         status: true,
@@ -91,38 +92,21 @@ export const withdraw = async (
     .catch(e => next(e));
 };
 
-export const getAccountBalance = async (req: Request, res: Response) => {
-  const metricsLabel = {
-    operation: 'getAccountBalance',
-  };
-  const timer = databaseResponseTimeHistogram.startTimer();
-  try {
-    const userId = Number(req.user.id);
+export const getAccountBalance = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const userId = req.user?.id as number;
 
-    const account = await prisma.account.findUnique({
-      where: {
-        userId: userId,
-      },
-    });
-
-    if (!account) {
-      return res.status(404).send('Sorry account not found');
-    }
-
-    timer({ ...metricsLabel, success: 'true' });
-
-    return res.status(200).send({
-      success: true,
-      balance: `${account.balance}`,
-    });
-  } catch (error: any) {
-    timer({ ...metricsLabel, success: 'false' });
-    return res.status(500).send({
-      success: false,
-      message: `Sorry couldn't fetch your account balance`,
-      error: error.message,
-    });
-  }
+  fetchAccountBalance(userId)
+    .then(dataObj => {
+      res.status(dataObj.statusCode).send({
+        status: true,
+        data: dataObj.data,
+      });
+    })
+    .catch(e => next(e));
 };
 
 //get history of transactions

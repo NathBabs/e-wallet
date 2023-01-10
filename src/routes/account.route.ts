@@ -6,7 +6,7 @@ import { auth } from '../middleware/auth';
 // import account controller
 import {
   transferToAccount,
-  refundMoney,
+  refund,
   deposit,
   withdraw,
   getAccountBalance,
@@ -26,9 +26,7 @@ router
 
 // refund money
 // { txRef: 'kjyfviayef733 }
-router
-  .route('/wallet/refund')
-  .post(validate(refundMoneySchema), auth, refundMoney);
+router.route('/wallet/refund').post(validate(refundMoneySchema), auth, refund);
 
 // deposit money
 // ?amount=50000

@@ -65,7 +65,13 @@ export async function transferMoney({
   }
 }
 
-export async function refund({ txRef, from }: { txRef: string; from: number }) {
+export async function refundMoney({
+  txRef,
+  from,
+}: {
+  txRef: string;
+  from: number;
+}) {
   try {
     const tx = await prisma.transactions.findFirst({
       where: {
@@ -291,6 +297,45 @@ export async function withdrawMoney({
     throw new AppError({
       statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
       description: error?.message || 'Sorry could not process your withdrawal',
+    });
+  }
+}
+
+export async function fetchAccountBalance(userId: number) {
+  const metricsLabel = {
+    operation: 'getAccountBalance',
+  };
+  const timer = databaseResponseTimeHistogram.startTimer();
+  try {
+    userId = Number(userId);
+
+    const account = await prisma.account.findUnique({
+      where: {
+        userId: userId,
+      },
+    });
+
+    if (!account) {
+      throw new AppError({
+        statusCode: StatusCode.NOT_FOUND,
+        description: 'Sorry account not found',
+      });
+    }
+
+    timer({ ...metricsLabel, success: 'true' });
+
+    return {
+      statusCode: StatusCode.OK,
+      data: {
+        balance: `${account.balance}`,
+      },
+    };
+  } catch (error: any) {
+    logger.error(error);
+    throw new AppError({
+      statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
+      description:
+        error?.message || 'Sorry could not fetch your account balance',
     });
   }
 }
