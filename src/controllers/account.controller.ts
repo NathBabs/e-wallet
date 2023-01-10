@@ -6,7 +6,11 @@ import { databaseResponseTimeHistogram } from '../utils/metrics';
 import { nanoid } from 'nanoid';
 import prisma from '../../client';
 import logger from '../utils/logger';
-import { refund, transferMoney } from '../services/account.service';
+import {
+  depositMoney,
+  refund,
+  transferMoney,
+} from '../services/account.service';
 import { RefundMoneyInput, TransferMoneyInput } from '../schema/account.schema';
 
 export const transferToAccount = async (
@@ -50,70 +54,22 @@ export const refundMoney = async (
     .catch(e => next(e));
 };
 
-export const deposit = async (req: Request, res: Response) => {
-  const metricsLabel = {
-    operation: 'depositMoney',
-  };
-  const timer = databaseResponseTimeHistogram.startTimer();
-  try {
-    const userId = Number(req.user.id);
+export const deposit = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const userId = req.user?.id as number;
+  const amount = Number(req.query.amount);
 
-    if (isNaN(req.query.amount) || Number(req.query.amount) <= 0) {
-      return res.status(500).send('Invalid amount');
-    }
-    const amount = currency(req.query.amount).value;
-
-    // increment balance
-    const account: account = await prisma.account.update({
-      data: {
-        balance: {
-          increment: amount,
-        },
-      },
-      where: {
-        userId: userId,
-      },
-      include: {
-        user: {
-          select: {
-            email: true,
-          },
-        },
-      },
-    });
-
-    if (!account) {
-      return res.status(404).send('sorry you do not have an account');
-    }
-
-    // create a deposit transaction
-    await prisma.transactions.create({
-      data: {
-        txRef: `DEP-${nanoid(12)}`,
-        refundRef: null,
-        amount: amount,
-        senderId: userId,
-        receiverId: userId,
-      },
-    });
-
-    timer({ ...metricsLabel, success: 'true' });
-
-    return res.status(200).send({
-      success: true,
-      message: `Your account has been credited with ${amount}, this is your new balance ${account.balance}`,
-      data: {
-        balance: account.balance,
-      },
-    });
-  } catch (error: any) {
-    timer({ ...metricsLabel, success: 'false' });
-    return res.status(500).send({
-      success: false,
-      message: `Sorry couldn't process your deposit`,
-      error: error.message,
-    });
-  }
+  depositMoney({ userId, amount })
+    .then(dataObj => {
+      res.status(dataObj.statusCode).send({
+        status: true,
+        data: dataObj.data,
+      });
+    })
+    .catch(e => next(e));
 };
 
 /**
