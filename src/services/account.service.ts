@@ -5,7 +5,7 @@ import { databaseResponseTimeHistogram } from '../utils/metrics';
 import { nanoid } from 'nanoid';
 import prisma from '../../client';
 import logger from '../utils/logger';
-import { OK } from '../utils/status';
+import { OK, BAD_REQUEST, NOT_FOUND } from '../utils/status';
 import { AppError, StatusCode } from '../exceptions/AppError';
 
 export async function transferMoney({
@@ -112,6 +112,83 @@ export async function refund({ txRef, from }: { txRef: string; from: number }) {
     throw new AppError({
       statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
       description: error?.message || 'Something went wrong while refunding',
+    });
+  }
+}
+
+export async function depositMoney({
+  userId,
+  amount,
+}: {
+  userId: number;
+  amount: number;
+}) {
+  const metricsLabel = {
+    operation: 'depositMoney',
+  };
+  const timer = databaseResponseTimeHistogram.startTimer();
+  try {
+    if (isNaN(amount) || Number(amount) <= 0) {
+      throw new AppError({
+        statusCode: BAD_REQUEST,
+        description: 'Invalid amount',
+      });
+    }
+
+    amount = currency(amount).value;
+
+    // increment balance
+    const account: account = await prisma.account.update({
+      data: {
+        balance: {
+          increment: amount,
+        },
+      },
+      where: {
+        userId: userId,
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!account) {
+      throw new AppError({
+        statusCode: NOT_FOUND,
+        description: 'Account does not exist',
+      });
+    }
+
+    // create a deposit transaction
+    await prisma.transactions.create({
+      data: {
+        txRef: `DEP-${nanoid(12)}`,
+        refundRef: null,
+        amount: amount,
+        senderId: userId,
+        receiverId: userId,
+      },
+    });
+
+    timer({ ...metricsLabel, success: 'true' });
+    logger.info(`::: account ${account.accNumber} credited with ${amount} :::`);
+
+    return {
+      statusCode: OK,
+      data: {
+        message: `Your account has been credited with ${amount}, this is your new balance ${account.balance}`,
+        balance: account.balance,
+      },
+    };
+  } catch (error: any) {
+    logger.error(error);
+    throw new AppError({
+      statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
+      description: error?.message || 'Sorry could not process your deposit',
     });
   }
 }
