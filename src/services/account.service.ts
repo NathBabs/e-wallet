@@ -49,7 +49,7 @@ export async function transferMoney({
 
     // send the transaction back to client
     return {
-      statusCode: OK,
+      statusCode: StatusCode.OK,
       data: {
         transactionReference: transaction.txRef,
         balance: account?.balance,
@@ -76,7 +76,7 @@ export async function refund({ txRef, from }: { txRef: string; from: number }) {
 
     if (!tx) {
       throw new AppError({
-        statusCode: 404,
+        statusCode: StatusCode.NOT_FOUND,
         description: `Sorry you can't refund this transaction of Reference: ${txRef}`,
       });
     }
@@ -101,7 +101,7 @@ export async function refund({ txRef, from }: { txRef: string; from: number }) {
     );
 
     return {
-      statusCode: OK,
+      statusCode: StatusCode.OK,
       data: {
         message: `Refund has been completed here is the Transaction Refrence: ${refund.txRef}`,
         transactionReference: refund?.txRef,
@@ -130,7 +130,7 @@ export async function depositMoney({
   try {
     if (isNaN(amount) || Number(amount) <= 0) {
       throw new AppError({
-        statusCode: BAD_REQUEST,
+        statusCode: StatusCode.BAD_REQUEST,
         description: 'Invalid amount',
       });
     }
@@ -158,7 +158,7 @@ export async function depositMoney({
 
     if (!account) {
       throw new AppError({
-        statusCode: NOT_FOUND,
+        statusCode: StatusCode.NOT_FOUND,
         description: 'Account does not exist',
       });
     }
@@ -178,7 +178,7 @@ export async function depositMoney({
     logger.info(`::: account ${account.accNumber} credited with ${amount} :::`);
 
     return {
-      statusCode: OK,
+      statusCode: StatusCode.OK,
       data: {
         message: `Your account has been credited with ${amount}, this is your new balance ${account.balance}`,
         balance: account.balance,
@@ -189,6 +189,108 @@ export async function depositMoney({
     throw new AppError({
       statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
       description: error?.message || 'Sorry could not process your deposit',
+    });
+  }
+}
+
+export async function withdrawMoney({
+  userId,
+  amount,
+}: {
+  userId: number;
+  amount: number;
+}) {
+  const metricsLabel = {
+    operation: 'withdrawMoney',
+  };
+  const timer = databaseResponseTimeHistogram.startTimer();
+  try {
+    userId = Number(userId);
+
+    if (isNaN(amount) || Number(amount) <= 0) {
+      throw new AppError({
+        statusCode: StatusCode.BAD_REQUEST,
+        description: 'Invalid amount',
+      });
+    }
+
+    amount = currency(amount).value;
+
+    // Get account that belongs to user
+    const account = await prisma.account.findUnique({
+      where: {
+        userId: userId,
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    const balance = currency(account?.balance as any).subtract(amount).value;
+
+    if (balance < 0) {
+      throw new AppError({
+        statusCode: StatusCode.BAD_REQUEST,
+        description: 'Insufficient balance',
+      });
+    }
+
+    const updatedAccount: account = await prisma.account.update({
+      data: {
+        balance: {
+          decrement: amount,
+        },
+      },
+      where: {
+        userId: userId,
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!updatedAccount) {
+      throw new AppError({
+        statusCode: StatusCode.NOT_FOUND,
+        description: 'Account does not exist',
+      });
+    }
+
+    // create a withdrawal transaction
+    await prisma.transactions.create({
+      data: {
+        txRef: `WDL-${nanoid(12)}`,
+        refundRef: null,
+        amount: amount,
+        senderId: userId,
+        receiverId: userId,
+      },
+    });
+
+    logger.info(
+      `::: Withdrawal successfull. Your new balance is now at ${updatedAccount.balance} :::`
+    );
+    timer({ ...metricsLabel, success: 'true' });
+
+    return {
+      statusCode: StatusCode.OK,
+      data: {
+        balance: updatedAccount?.balance,
+      },
+    };
+  } catch (error: any) {
+    logger.error(error);
+    throw new AppError({
+      statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
+      description: error?.message || 'Sorry could not process your withdrawal',
     });
   }
 }
