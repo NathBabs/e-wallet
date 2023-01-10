@@ -10,6 +10,7 @@ import {
   depositMoney,
   refund,
   transferMoney,
+  withdrawMoney,
 } from '../services/account.service';
 import { RefundMoneyInput, TransferMoneyInput } from '../schema/account.schema';
 
@@ -72,106 +73,24 @@ export const deposit = async (
     .catch(e => next(e));
 };
 
-/**
- *
- * @param req
- * @param res
- * @returns
- */
-export const withdraw = async (req: Request, res: Response) => {
-  const metricsLabel = {
-    operation: 'withdrawMoney',
-  };
-  const timer = databaseResponseTimeHistogram.startTimer();
-  try {
-    const userId = Number(req.user.id);
+export const withdraw = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const userId = req.user?.id as number;
+  const amount = Number(req.query.amount);
 
-    if (isNaN(req.query.amount) || Number(req.query.amount) <= 0) {
-      return res.status(500).send('Invalid amount');
-    }
-
-    const amount = currency(req.query.amount).value;
-
-    // Get account that belongs to user
-    const account = await prisma.account.findUnique({
-      where: {
-        userId: userId,
-      },
-      include: {
-        user: {
-          select: {
-            email: true,
-          },
-        },
-      },
-    });
-
-    const balance = currency(account?.balance).subtract(amount).value;
-
-    if (balance < 0) {
-      return res.status(500).send('Insufficient balance');
-    }
-
-    const updatedAccount: account = await prisma.account.update({
-      data: {
-        balance: {
-          decrement: amount,
-        },
-      },
-      where: {
-        userId: userId,
-      },
-      include: {
-        user: {
-          select: {
-            email: true,
-          },
-        },
-      },
-    });
-
-    if (!updatedAccount) {
-      return res.status(500).send('Account does not exist');
-    }
-
-    // create a withdrawal transaction
-    await prisma.transactions.create({
-      data: {
-        txRef: `WDL-${nanoid(12)}`,
-        refundRef: null,
-        amount: amount,
-        senderId: userId,
-        receiverId: userId,
-      },
-    });
-
-    timer({ ...metricsLabel, success: 'true' });
-
-    return res.status(200).send({
-      success: true,
-      message: `Withdrawal successfull. Your new balance is now at ${updatedAccount.balance}`,
-      data: {
-        balance: updatedAccount.balance,
-        amount: amount,
-      },
-    });
-  } catch (error: any) {
-    logger.error(error);
-    timer({ ...metricsLabel, success: 'false' });
-    return res.status(500).send({
-      success: false,
-      message: `Sorry couldn't process your withdrawal`,
-      error: error.message,
-    });
-  }
+  withdrawMoney({ userId, amount })
+    .then(dataObj => {
+      res.status(dataObj.statusCode).send({
+        status: true,
+        data: dataObj.data,
+      });
+    })
+    .catch(e => next(e));
 };
 
-/**
- * Get account balance
- * @param req
- * @param res
- * @returns
- */
 export const getAccountBalance = async (req: Request, res: Response) => {
   const metricsLabel = {
     operation: 'getAccountBalance',
