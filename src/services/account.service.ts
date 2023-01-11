@@ -7,6 +7,7 @@ import prisma from '../../client';
 import logger from '../utils/logger';
 import { OK, BAD_REQUEST, NOT_FOUND } from '../utils/status';
 import { AppError, StatusCode } from '../exceptions/AppError';
+import { formatDateByFormat } from '../utils/util';
 
 export async function transferMoney({
   to,
@@ -336,6 +337,75 @@ export async function fetchAccountBalance(userId: number) {
       statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
       description:
         error?.message || 'Sorry could not fetch your account balance',
+    });
+  }
+}
+
+export async function fetchTransactionHistory(userId: number) {
+  const metricsLabel = {
+    operation: 'getTransactionHistory',
+  };
+  const timer = databaseResponseTimeHistogram.startTimer();
+  try {
+    userId = Number(userId);
+
+    // first get accNumber
+    const account = await prisma.account.findUnique({
+      where: {
+        userId: userId,
+      },
+    });
+
+    if (!account) {
+      throw new AppError({
+        statusCode: StatusCode.NOT_FOUND,
+        description: 'Sorry, account not found',
+      });
+    }
+
+    // get transactions where user is either senderId or receiverId
+    const history = await prisma.transactions.findMany({
+      where: {
+        OR: [
+          {
+            senderId: userId,
+          },
+          {
+            receiverId: userId,
+          },
+        ],
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+    });
+
+    const modifiedTransactionHistoryList = history.map(transaction => {
+      return {
+        from: transaction.senderId,
+        to: transaction.receiverId,
+        amount: transaction.amount,
+        refundReference: transaction.refundRef,
+        transactionReference: transaction.txRef,
+        date: formatDateByFormat({ date: transaction.updated_at }),
+      };
+    });
+
+    timer({ ...metricsLabel, success: 'true' });
+
+    return {
+      statusCode: StatusCode.OK,
+      data: {
+        list: modifiedTransactionHistoryList,
+      },
+    };
+  } catch (error: any) {
+    logger.error(error);
+    throw new AppError({
+      statusCode: error?.statusCode || StatusCode.BAD_REQUEST,
+      description:
+        error?.message ||
+        'Sorry could not fetch your account transaction history',
     });
   }
 }

@@ -9,6 +9,7 @@ import logger from '../utils/logger';
 import {
   depositMoney,
   fetchAccountBalance,
+  fetchTransactionHistory,
   refundMoney,
   transferMoney,
   withdrawMoney,
@@ -109,63 +110,19 @@ export const getAccountBalance = async (
     .catch(e => next(e));
 };
 
-//get history of transactions
-export const getTransactionHistory = async (req: Request, res: Response) => {
-  const metricsLabel = {
-    operation: 'getTransactionHistory',
-  };
-  const timer = databaseResponseTimeHistogram.startTimer();
-  try {
-    const userId = Number(req.user.id);
+export const getTransactionHistory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const userId = req.user?.id as number;
 
-    // first get accNumber
-    const account = await prisma.account.findUnique({
-      where: {
-        userId: userId,
-      },
-    });
-
-    if (!account) {
-      return res.status(404).send('Sorry account not found');
-    }
-
-    // get transactions where user is either senderId or receiverId
-    const history = await prisma.transactions.findMany({
-      where: {
-        OR: [
-          {
-            senderId: userId,
-          },
-          {
-            receiverId: userId,
-          },
-        ],
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
-
-    if (history.length == 0) {
-      return res
-        .status(404)
-        .send('There are no transactions on this account yet');
-    }
-    timer({ ...metricsLabel, success: 'true' });
-
-    return res.status(200).send({
-      success: true,
-      data: {
-        transactions: history,
-      },
-    });
-  } catch (error: any) {
-    logger.error(error);
-    timer({ ...metricsLabel, success: 'false' });
-    return res.status(500).send({
-      success: false,
-      message: `Sorry couldn't fetch your transactions`,
-      error: error.message,
-    });
-  }
+  fetchTransactionHistory(userId)
+    .then(dataObj => {
+      res.status(dataObj.statusCode).send({
+        status: true,
+        data: dataObj.data,
+      });
+    })
+    .catch(e => next(e));
 };
