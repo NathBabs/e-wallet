@@ -328,7 +328,7 @@ export async function fetchAccountBalance(userId: number) {
     return {
       statusCode: StatusCode.OK,
       data: {
-        balance: `${account.balance}`,
+        balance: account.balance,
       },
     };
   } catch (error: any) {

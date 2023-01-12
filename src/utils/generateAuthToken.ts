@@ -1,15 +1,15 @@
-import jwt from 'jsonwebtoken';
+import { sign } from 'jsonwebtoken';
 import { user } from '.prisma/client';
 import logger from './logger';
 import prisma from '../../client';
 
 export const generateToken = async (instance: user): Promise<string> => {
   try {
-    const token = jwt.sign(
+    const token = sign(
       {
         id: instance.id.toString(),
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET as string,
       {
         expiresIn: '7d',
       }

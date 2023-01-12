@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "rimraf build && npx tsc",
+    "dev": "npm run build && concurrently \"npx tsc --watch\" \"nodemon --es-module-specifier-resolution=node -q build/src/server.js\"",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "test": "npm run docker:up & dotenv -e ./.env.test npx prisma migrate deploy & dotenv -e ./.env.test jest user.spec.ts --watch --detectOpenHandles & dotenv -e ./.env.test jest account.spec.ts --watch --detectOpenHandles",
@@ -24,6 +25,7 @@
     "@types/morgan": "^1.9.3",
     "@types/yup": "^0.29.13",
     "bcryptjs": "^2.4.3",
+    "concurrently": "^7.6.0",
     "config": "^3.3.7",
     "cors": "^2.8.5",
     "currency.js": "^2.0.4",
@@ -39,6 +41,7 @@
     "pino": "^7.6.4",
     "prom-client": "^14.0.1",
     "response-time": "^2.3.2",
+    "rimraf": "^3.0.2",
     "yup": "^0.32.11"
   },
   "devDependencies": {
@@ -54,6 +57,7 @@
     "@types/pino": "^7.0.5",
     "@types/response-time": "^2.3.5",
     "@types/sinon": "^10.0.9",
+    "@types/supertest": "^2.0.12",
     "@typescript-eslint/eslint-plugin": "^5.48.0",
     "@typescript-eslint/parser": "^5.48.0",
     "cz-conventional-changelog": "^3.3.0",
@@ -62,6 +66,7 @@
     "jest": "^27.4.7",
     "jest-mock-extended": "^2.0.4",
     "jest-serial-runner": "^1.2.0",
+    "nodemon": "^2.0.20",
     "pino-pretty": "^9.1.1",
     "prettier": "^2.8.1",
     "prisma": "^3.8.1",

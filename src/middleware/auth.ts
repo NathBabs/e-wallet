@@ -3,6 +3,21 @@ import jwt from 'jsonwebtoken';
 import prisma from '../../client';
 import logger from '../utils/logger';
 
+type decodedPayload = {
+  id: string;
+  iat: number;
+  exp: number;
+};
+
+type decodedExpPayload = {
+  header: {
+    alg: string;
+    typ: string;
+  };
+  payload: decodedPayload;
+  signature: string;
+};
+
 export const auth = async (req: Request, res: Response, next: NextFunction) => {
   let token = req.header('Authorization')?.replace('Bearer', '');
   token = token?.trim();
@@ -10,7 +25,10 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
     if (!token) {
       throw new Error('Please sign in');
     }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as jwt.Secret);
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as decodedPayload;
 
     const user = await prisma.user.findFirst({
       where: {
@@ -35,7 +53,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
       // @ts-ignore
       const decodedExp = jwt.decode(token, {
         complete: true,
-      });
+      }) as decodedExpPayload;
       const id = +decodedExp?.payload.id;
       const user = await prisma.user.findFirst({
         where: {
