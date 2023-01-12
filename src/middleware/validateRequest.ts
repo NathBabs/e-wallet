@@ -13,7 +13,7 @@ const validate =
       });
 
       return next();
-    } catch (error) {
+    } catch (error: any) {
       logger.error(error);
       return res.status(400).send(error.errors);
     }

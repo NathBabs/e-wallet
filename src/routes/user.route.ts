@@ -8,10 +8,10 @@ import validate from '../middleware/validateRequest';
 //import create user schema
 import { createUserSchema } from '../schema/user.schema';
 // import user controller
-import { registerUser, login, logout } from '../controllers/user.controller';
+import { register, login, logout } from '../controllers/user.controller';
 
 // register user and create account
-router.route('/wallet/register').post(validate(createUserSchema), registerUser);
+router.route('/wallet/register').post(validate(createUserSchema), register);
 // login user
 router.route('/wallet/login').post(login);
 
