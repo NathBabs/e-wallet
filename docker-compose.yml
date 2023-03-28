@@ -4,12 +4,49 @@ version: '3.9'
 # The containers that compose the project
 services:
   db:
-    image: postgres:13
+    image: postgres:latest
+    profiles: ["prod", "kubernetes"]
+    container_name: wallet-db
+    restart: unless-stopped
+    ports:
+      - "6000:5432"
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=$POSTGRES_USER
+      - POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+      - POSTGRES_DB=$POSTGRES_DB
+    volumes:
+      - postgres:/var/lib/postgresql/data
+  server:
+    image: wallet-api
+    container_name: wallet-api
+    profiles: ["prod"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3200:3200"
+    env_file:
+      - .env
+    environment:
+      - PORT=$PORT
+      - JWT_SECRET=$JWT_SECRET
+      - DATABASE_URL=$DATABASE_URL
+    depends_on:
+      - db
+    restart: always
+  db-test:
+    image: postgres:latest
+    profiles: ["test"]
     restart: always
     container_name: integration-tests-prisma
     ports:
-      - '5433:5432'
+      - "5433:5432"
     environment:
       POSTGRES_USER: prisma
       POSTGRES_PASSWORD: prisma
       POSTGRES_DB: tests
+
+volumes:
+  postgres:

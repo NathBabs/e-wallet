@@ -66,16 +66,23 @@ describe('User Authentication', () => {
   });
 
   test('should sign up a new user', async () => {
-    const response = await request(app)
-      .post('/wallet/register')
-      .send({
-        email: 'oku@gmail.com',
-        password: 'password',
-        balance: 50000,
-      })
-      .expect(201);
+    const response = await request(app).post('/wallet/register').send({
+      email: 'oku@gmail.com',
+      password: 'password',
+      balance: 50000,
+    });
 
-    expect(response.body.success).toBe(true);
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty('status');
+    expect(response.body.status).toEqual(true);
+    expect(response.body).toHaveProperty('data');
+    expect(response.body).toHaveProperty('data.token');
+    expect(response.body).toHaveProperty('data.user');
+    expect(response.body).toHaveProperty('data.user.id');
+    expect(response.body).toHaveProperty('data.user.email');
+    expect(response.body).toHaveProperty('data.user.account');
+    expect(response.body).toHaveProperty('data.user.account.accNumber');
+    expect(response.body).toHaveProperty('data.user.account.balance');
   });
 
   test('should not login non existent user', async () => {
@@ -85,9 +92,9 @@ describe('User Authentication', () => {
         email: 'oshuka@gmail.com',
         password: 'ozumbadadiwe',
       })
-      .expect(404);
+      .expect(400);
 
-    expect(response.body.success).toBe(false);
+    expect(response.body).toHaveProperty('message');
     expect(response.body.message).toBe('Wrong username or password');
   });
 
@@ -98,8 +105,9 @@ describe('User Authentication', () => {
         email: userOne.email,
         password: '234ert5',
       })
-      .expect(404);
+      .expect(400);
 
-    expect(response.body.success).toBe(false);
+    expect(response.body).toHaveProperty('message');
+    expect(response.body.message).toBe('Wrong username or password');
   });
 });

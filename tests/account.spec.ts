@@ -2,16 +2,12 @@ import request from 'supertest';
 import app from '../src/app';
 import { createSandbox } from 'sinon';
 import { PrismaClient, Prisma } from '@prisma/client';
-//import {user} from '../node_modules/.prisma/client';
 import { generateToken } from '../src/utils/generateAuthToken';
 
 const prisma = new PrismaClient();
 
 import { nanoid } from 'nanoid';
 import logger from '../src/utils/logger';
-
-const sandbox = createSandbox();
-
 //================================================================================================
 let users: {
   email: string;
@@ -121,7 +117,6 @@ describe('Account API', () => {
         amount: 5000,
       })
       .expect(200);
-
     expect(response.body).toHaveProperty('data.transactionReference');
   });
 
@@ -133,9 +128,12 @@ describe('Account API', () => {
         to: userTwoCreate.account.accNumber,
         amount: 5000000,
       })
-      .expect(500);
+      .expect(400);
 
-    expect(response.body.success).toBe(false);
+    expect(response.body).toHaveProperty('message');
+    expect(response.body.message).toBe(
+      `This A/C number: ${userOneCreate.account.accNumber} does not have sufficient funds`
+    );
   });
 
   test('should initiate a refund', async () => {
@@ -144,16 +142,18 @@ describe('Account API', () => {
         receiverId: userOneCreate.account.accNumber,
       },
     });
-
     const response = await request(app)
       .post('/wallet/refund')
       .set('Authorization', `Bearer ${token}`)
       .send({
         txRef: transaction?.txRef,
-      })
-      .expect(200);
+      });
 
-    expect(response.body.success).toBe(true);
+    expect(response.status).toEqual(200);
+    expect(response.body.status).toBe(true);
+    expect(response.body).toHaveProperty('data');
+    expect(response.body.data).toHaveProperty('message');
+    expect(response.body.data).toHaveProperty('transactionReference');
   });
 
   test('should deposit money into account', async () => {
@@ -163,18 +163,25 @@ describe('Account API', () => {
       .send()
       .expect(200);
 
-    expect(response.body.success).toBe(true);
+    expect(response.body.status).toBe(true);
+    expect(response.body).toHaveProperty('data');
+    expect(response.body.data).toHaveProperty('message');
+    expect(response.body.data).toHaveProperty('balance');
+    expect(typeof response.body.data.balance).toBe('number');
   });
 
-  test('should should withdraw an amount', async () => {
+  test('should withdraw an amount', async () => {
     const response = await request(app)
       .post(`/wallet/withdraw?amount=1000`)
       .set('Authorization', `Bearer ${token}`)
       .send()
       .expect(200);
 
-    expect(response.body.success).toBe(true);
-    expect(response.body.data.amount).toBe(1000);
+    expect(response.body.status).toBe(true);
+    expect(response.body).toHaveProperty('data');
+    expect(response.body.data).toHaveProperty('balance');
+    expect(typeof response.body.data.balance).toBe('number');
+    expect(response.body.data.balance).toBe(94000);
   });
 
   test('should get account balance', async () => {
@@ -184,7 +191,10 @@ describe('Account API', () => {
       .send()
       .expect(200);
 
-    expect(response.body.success).toBe(true);
+    expect(response.body.status).toBe(true);
+    expect(response.body).toHaveProperty('data');
+    expect(response.body.data).toHaveProperty('balance');
+    expect(typeof response.body.data.balance).toBe('number');
   });
 
   test('Should get transaction history', async () => {
@@ -194,7 +204,13 @@ describe('Account API', () => {
       .send()
       .expect(200);
 
-    expect(response.body.success).toBe(true);
-    expect(response.body.data).toHaveProperty('transactions');
+    expect(response.body.status).toBe(true);
+    expect(response.body.data).toHaveProperty('list');
+    expect(Array.isArray(response.body.data.list)).toBe(true);
+    expect(response.body.data.list[0]).toHaveProperty('from');
+    expect(response.body.data.list[0]).toHaveProperty('to');
+    expect(response.body.data.list[0]).toHaveProperty('amount');
+    expect(response.body.data.list[0]).toHaveProperty('transactionReference');
+    expect(response.body.data.list[0]).toHaveProperty('date');
   });
 });

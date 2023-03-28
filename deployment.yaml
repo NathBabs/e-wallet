@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wallet-api-deployment
+  labels:
+   app: wallet-api
+spec:
+  replicas: 3
+  selector:
+   matchLabels:
+    app: wallet-api
+  template:
+   metadata:
+    labels:
+     app: wallet-api
+   spec:
+    containers:
+      - name: wallet-api
+        image: noguile/wallet:0.1
+        envFrom:
+        - secretRef:
+            name: wallet-secret
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c", "npx prisma generate && npx prisma migrate dev && node build/src/server.js --dotenv_config_path=/app/.env"]
+        volumeMounts:
+         - name: dotenv-volume
+           mountPath: /app/.env
+           readOnly: true
+    volumes:
+     - name: dotenv-volume
+       secret:
+        secretName: wallet-secret

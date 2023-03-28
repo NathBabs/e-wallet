@@ -74,7 +74,7 @@ export async function registerUser({
     );
 
     return {
-      statusCode: StatusCode.OK,
+      statusCode: StatusCode.CREATED,
       data: {
         token: token,
         user: rest,
